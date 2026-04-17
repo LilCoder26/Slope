@@ -1,114 +1,73 @@
-<!-- Ultimate Game Stash file--> 
-<!-- For the regularly updating doc go to https://docs.google.com/document/d/1_FmH3BlSBQI7FGgAQL59-ZPe8eCxs35wel6JUyVaG8Q/ -->
+<script>
+    function mergeFiles(fileParts) {
+        return new Promise((resolve, reject) => {
+            let buffers = [];
 
-<!DOCTYPE html>
-<html lang="en-us">
-
-<head>
-    <base href="https://cdn.jsdelivr.net/gh/gn-math/assets@51462750d29b68ac1e33887c1bf13d9c478d5ead/198/">
-    <meta charset="utf-8">
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-    <title>Unity WebGL Player | Slope Plus</title>
-    <link rel="shortcut icon" href="TemplateData/favicon.ico">
-    <link rel="stylesheet" href="TemplateData/style.css">
-    <style>
-        html,
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            height: 100%;
-            width: 100%;
-        }
-
-        #unity-container {
-            width: 100%;
-            height: 100%;
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
-    </style>
-    <script src="TemplateData/UnityProgress.js"></script>
-    <script src="Build/UnityLoader.js"></script>
-    <script>
-        function mergeFiles(fileParts) {
-            return new Promise((resolve, reject) => {
-                let buffers = [];
-
-                function fetchPart(index) {
-                    if (index >= fileParts.length) {
-                        let mergedBlob = new Blob(buffers);
-                        let mergedFileUrl = URL.createObjectURL(mergedBlob);
-                        resolve(mergedFileUrl);
-                        return;
-                    }
-                    fetch(fileParts[index]).then((response) => response.arrayBuffer()).then((data) => {
-                        buffers.push(data);
-                        fetchPart(index + 1);
-                    }).catch(reject);
+            function fetchPart(i) {
+                if (i >= fileParts.length) {
+                    let blob = new Blob(buffers);
+                    resolve(URL.createObjectURL(blob));
+                    return;
                 }
-                fetchPart(0);
-            });
-        }
-
-        function getParts(file, start, end) {
-            let parts = [];
-            for (let i = start; i <= end; i++) {
-                parts.push(file + ".part" + i);
+                fetch(fileParts[i])
+                    .then(r => r.arrayBuffer())
+                    .then(buf => {
+                        buffers.push(buf);
+                        fetchPart(i + 1);
+                    })
+                    .catch(reject);
             }
-            return parts;
-        }
+            fetchPart(0);
+        });
+    }
 
-        window.addEventListener('resize', resizeGameContainer);
+    function getParts(base, start, end) {
+        let arr = [];
+        for (let i = start; i <= end; i++) arr.push(base + ".part" + i);
+        return arr;
+    }
 
-        function resizeGameContainer() {
-            const container = document.getElementById('gameContainer');
-            if (container) {
-                const width = window.innerWidth;
-                const height = window.innerHeight;
-                container.style.width = `${width}px`;
-                container.style.height = `${height}px`;
-            }
-        }
+    window.onload = function () {
+        resizeGameContainer();
 
-        window.onload = function () {
-            resizeGameContainer();
+        mergeFiles(
+            getParts(
+                "https://cdn.jsdelivr.net/gh/gn-math/assets@51462750d29b68ac1e33887c1bf13d9c478d5ead/198/Build/WEB1.2.1.data.unityweb",
+                1,
+                2
+            )
+        ).then(dataUrl => {
 
-            Promise.all([
-                mergeFiles(getParts("https://cdn.jsdelivr.net/gh/gn-math/assets@51462750d29b68ac1e33887c1bf13d9c478d5ead/198/Build/WEB1.2.1.data.unityweb", 1, 2))
-            ]).then(([dataUrl]) => {
-                let json = {
-                    companyName: "Slope Plus",
-                    productName: "Slope Plus",
-                    dataUrl: dataUrl,
-                    wasmCodeUrl: "https://cdn.jsdelivr.net/gh/gn-math/assets@51462750d29b68ac1e33887c1bf13d9c478d5ead/198/Build/WEB1.2.1.wasm.code.unityweb",
-                    wasmFrameworkUrl: "https://cdn.jsdelivr.net/gh/gn-math/assets@51462750d29b68ac1e33887c1bf13d9c478d5ead/198/Build/WEB1.2.1.wasm.framework.unityweb",
-                    TOTAL_MEMORY: 268435456,
-                    graphicsAPI: ["WebGL 2.0", "WebGL 1.0"],
-                    webglContextAttributes: {
-                        preserveDrawingBuffer: false
-                    },
-                    splashScreenStyle: "Dark",
-                    backgroundColor: "#000000"
-                }
-                let blob = new Blob([JSON.stringify(json)], {
-                    type: 'application/json'
-                });
-                let blobUrl = URL.createObjectURL(blob);
-                UnityLoader.instantiate("gameContainer", json, {
-                    onProgress: UnityProgress,
-                    url: blobUrl
-                });
+            // Build JSON config Unity expects
+            const config = {
+                companyName: "Slope Plus",
+                productName: "Slope Plus",
+                dataUrl: dataUrl,
+                wasmCodeUrl: "https://cdn.jsdelivr.net/gh/gn-math/assets@51462750d29b68ac1e33887c1bf13d9c478d5ead/198/Build/WEB1.2.1.wasm.code.unityweb",
+                wasmFrameworkUrl: "https://cdn.jsdelivr.net/gh/gn-math/assets@51462750d29b68ac1e33887c1bf13d9c478d5ead/198/Build/WEB1.2.1.wasm.framework.unityweb",
+                streamingAssetsUrl: "StreamingAssets",
+                backgroundColor: "#000000",
+                splashScreenStyle: "Dark",
+                graphicsAPI: ["WebGL 2.0", "WebGL 1.0"]
+            };
+
+            // Turn JSON into a blob UnityLoader can load
+            const blob = new Blob([JSON.stringify(config)], { type: "application/json" });
+            const configUrl = URL.createObjectURL(blob);
+
+            // Correct UnityLoader call
+            UnityLoader.instantiate("gameContainer", configUrl, {
+                onProgress: UnityProgress
             });
-        };
-    </script>
-</head>
+        });
+    };
 
-<body>
-    <div class="webgl-content">
-        <div id="gameContainer"></div>
-    </div>
-</body>
+    window.addEventListener("resize", resizeGameContainer);
 
-</html>
+    function resizeGameContainer() {
+        const container = document.getElementById("gameContainer");
+        if (!container) return;
+        container.style.width = window.innerWidth + "px";
+        container.style.height = window.innerHeight + "px";
+    }
+</script>
